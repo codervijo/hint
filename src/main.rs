@@ -70,6 +70,7 @@ async fn main() -> Result<()> {
 /// the drawing logic for items on how to specify the highlighting style for selected items.
 struct App {
     should_exit: bool,
+    show_details: bool,
     storylist: HnStoryList,
 }
 
@@ -94,13 +95,10 @@ enum Status {
 impl Default for App {
     fn default() -> Self {
         Self {
+            show_details: false,
             should_exit: false,
             storylist: HnStoryList::from_iter([
                 (Status::Unread, "Rewrite everything with Rust!", "I can't hold my inner voice. He tells me to rewrite the complete universe with Rust"),
-                (Status::Unread, "Rewrite all of your tui apps with Ratatui", "Yes, you heard that right. Go and replace your tui with Ratatui."),
-                (Status::Unread, "Pet your cat", "Minnak loves to be pet by you! Don't forget to pet and give some treats!"),
-                (Status::Unread, "Walk with your dog", "Max is bored, go walk with him!"),
-                (Status::Unread, "Pay the bills", "Pay the train subscription!!!"),
                 (Status::Unread, "Refactor list example", "If you see this info that means I completed this task!"),
             ]),
         }
@@ -186,6 +184,10 @@ impl App {
             self.storylist.items[i].status = match self.storylist.items[i].status {
                 Status::Read => Status::Unread,
                 Status::Unread => Status::Read,
+            };
+            self.show_details = match self.show_details {
+                true => false,
+                false => true,
             }
         }
     }
@@ -200,13 +202,24 @@ impl Widget for &mut App {
         ])
         .areas(area);
 
-        let [list_area, item_area] =
-            Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(main_area);
+        let (list_area, item_area);
+
+        if self.show_details {
+            let areas: [Rect; 2] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(main_area);
+            list_area = areas[0];
+            item_area = areas[1];
+        } else {
+            let areas: [Rect; 1] = Layout::vertical([Constraint::Fill(1)]).areas(main_area);
+            list_area = areas[0];
+            item_area = Rect::default(); // Use a default value when not needed
+        }
 
         App::render_header(header_area, buf);
         App::render_footer(footer_area, buf);
         self.render_list(list_area, buf);
-        self.render_selected_item(item_area, buf);
+        if self.show_details == true {
+            self.render_selected_item(item_area, buf);
+        }
     }
 }
 
@@ -258,6 +271,9 @@ impl App {
     }
 
     fn render_selected_item(&self, area: Rect, buf: &mut Buffer) {
+        if self.show_details == false {
+            return;
+        }
         // We get the info depending on the item's state.
         let info = if let Some(i) = self.storylist.state.selected() {
             match self.storylist.items[i].status {
