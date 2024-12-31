@@ -4,7 +4,7 @@ use ratatui::{
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     layout::{Constraint, Layout, Rect},
     style::{
-        palette::tailwind::{BLUE, GREEN, SLATE},
+        palette::tailwind::{BLUE, GREEN, SLATE, TEAL},
         Color, Modifier, Style, Stylize,
     },
     symbols,
@@ -18,12 +18,12 @@ use ratatui::{
 
 mod hnreader;
 
-const HEADER_STYLE: Style = Style::new().fg(SLATE.c100).bg(BLUE.c800);
-const NORMAL_ROW_BG: Color = SLATE.c950;
-const ALT_ROW_BG_COLOR: Color = SLATE.c900;
-const SELECTED_STYLE: Style = Style::new().bg(SLATE.c800).add_modifier(Modifier::BOLD);
-const TEXT_FG_COLOR: Color = SLATE.c200;
-const COMPLETED_TEXT_FG_COLOR: Color = GREEN.c500;
+const HEADER_STYLE: Style = Style::new().fg(BLUE.c300).bg(BLUE.c700);
+const NORMAL_ROW_BG: Color = BLUE.c950;
+const ALT_ROW_BG_COLOR: Color = BLUE.c900;
+const SELECTED_STYLE: Style = Style::new().bg(BLUE.c700).add_modifier(Modifier::BOLD);
+const TEXT_FG_COLOR: Color = BLUE.c200;
+const COMPLETED_TEXT_FG_COLOR: Color = TEAL.c400; // Slightly shifted for better contrast with blue
 
 #[tokio::main]
 async fn main() -> Result<()> {
