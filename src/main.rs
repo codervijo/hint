@@ -228,7 +228,7 @@ impl App {
 
     fn render_list(&mut self, area: Rect, buf: &mut Buffer) {
         let block = Block::new()
-            .title(Line::raw("HackerNews List").centered())
+            .title(Line::raw("HackerNews").centered())
             .borders(Borders::TOP)
             .border_set(symbols::border::EMPTY)
             .border_style(HEADER_STYLE)
