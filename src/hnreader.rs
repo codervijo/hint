@@ -3,6 +3,7 @@ use serde::Deserialize;
 
 const BASE_URL: &str = "https://hacker-news.firebaseio.com/v0/";
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct Story {
     pub id: u64,
@@ -28,6 +29,7 @@ pub async fn fetch_story_details(story_id: u64) -> Result<Story, Error> {
     Ok(story)
 }
 
+#[allow(dead_code)]
 pub async fn fetch_new_stories() -> Result<Vec<u64>, Error> {
     let url = format!("{BASE_URL}newstories.json");
     let response = reqwest::get(&url).await?;
@@ -35,6 +37,7 @@ pub async fn fetch_new_stories() -> Result<Vec<u64>, Error> {
     Ok(story_ids)
 }
 
+#[allow(dead_code)]
 pub async fn fetch_ask_stories() -> Result<Vec<u64>, Error> {
     let url = format!("{BASE_URL}askstories.json");
     let response = reqwest::get(&url).await?;
@@ -42,6 +45,7 @@ pub async fn fetch_ask_stories() -> Result<Vec<u64>, Error> {
     Ok(story_ids)
 }
 
+#[allow(dead_code)]
 pub async fn fetch_show_stories() -> Result<Vec<u64>, Error> {
     let url = format!("{BASE_URL}showstories.json");
     let response = reqwest::get(&url).await?;
@@ -49,6 +53,7 @@ pub async fn fetch_show_stories() -> Result<Vec<u64>, Error> {
     Ok(story_ids)
 }
 
+#[allow(dead_code)]
 pub async fn fetch_job_stories() -> Result<Vec<u64>, Error> {
     let url = format!("{BASE_URL}jobstories.json");
     let response = reqwest::get(&url).await?;

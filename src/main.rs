@@ -17,6 +17,10 @@ use ratatui::{
 };
 
 mod hnreader;
+mod hint_hackernews;
+mod hint_log;
+use crate::hint_log::init_debug_log;
+use crate::hint_log::log_debug_info;
 
 const HEADER_STYLE: Style = Style::new().fg(BLUE.c300).bg(BLUE.c700);
 const NORMAL_ROW_BG: Color = BLUE.c950;
@@ -27,6 +31,7 @@ const COMPLETED_TEXT_FG_COLOR: Color = TEAL.c400; // Slightly shifted for better
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    init_debug_log();
     color_eyre::install()?;
     let terminal = ratatui::init();
     let mut hintapp = App::default();
@@ -35,10 +40,13 @@ async fn main() -> Result<()> {
         Ok(story_ids) => {
             //println!("Top Stories IDs: {:?}", story_ids);
 
-            for sid in story_ids {
+            for (i, sid) in story_ids.iter().enumerate() {
+                if i > 5 {
+                    break;
+                }
                 let mut title = String::from("abc");
                 let mut url = String::from("hcker");
-                match hnreader::fetch_story_details(sid).await {
+                match hnreader::fetch_story_details(*sid).await {
                     Ok(story) => {
                         //println!("Story Details: {:?}", story);
                         title = story.title.clone().unwrap_or_else(|| String::from("Untitled"));
@@ -48,7 +56,7 @@ async fn main() -> Result<()> {
                 }
                 //println!("\n");
                 hintapp.storylist.append_item(HnStoryItem {
-                    story: title,
+                    title,
                     details: format!("Details From URL: {}", url),
                     status: Status::Unread,
                 });
@@ -56,6 +64,10 @@ async fn main() -> Result<()> {
         }
         Err(err) => eprintln!("Failed to fetch top stories: {}", err),
     }
+
+    let hl = hint_hackernews::HnStoryList::new().await;
+    println!("hn list: {:?}", hl);
+    log_debug_info("HackerNews List:", format_args!("{:?}", hl));
 
     let res = hintapp.run(terminal);
     ratatui::restore();
@@ -81,7 +93,7 @@ struct HnStoryList {
 
 #[derive(Debug)]
 struct HnStoryItem {
-    story: String,
+    title: String,
     details: String,
     status: Status,
 }
@@ -106,7 +118,7 @@ impl HnStoryList {
     fn from_iter<I: IntoIterator<Item = (Status, &'static str, &'static str)>>(iter: I) -> Self {
         let items = iter
             .into_iter()
-            .map(|(status, story, details)| HnStoryItem::new(status, story, details))
+            .map(|(status, title, details)| HnStoryItem::new(status, title, details))
             .collect();
         let state = ListState::default();
         Self { items, state }
@@ -118,10 +130,10 @@ impl HnStoryList {
 }
 
 impl HnStoryItem {
-    fn new(status: Status, story: &str, details: &str) -> Self {
+    fn new(status: Status, title: &str, details: &str) -> Self {
         Self {
             status,
-            story: story.to_string(),
+            title:title.to_string(),
             details: details.to_string(),
         }
     }
@@ -301,9 +313,9 @@ const fn alternate_colors(i: usize) -> Color {
 impl From<&HnStoryItem> for ListItem<'_> {
     fn from(value: &HnStoryItem) -> Self {
         let line = match value.status {
-            Status::Unread => Line::styled(format!(" ☐ {}", value.story), TEXT_FG_COLOR),
+            Status::Unread => Line::styled(format!(" ☐ {}", value.title), TEXT_FG_COLOR),
             Status::Read => {
-                Line::styled(format!(" ✓ {}", value.story), COMPLETED_TEXT_FG_COLOR)
+                Line::styled(format!(" ✓ {}", value.title), COMPLETED_TEXT_FG_COLOR)
             }
         };
         ListItem::new(line)
