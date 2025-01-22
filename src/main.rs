@@ -55,7 +55,7 @@ async fn main() -> Result<()> {
                     Err(err) => eprintln!("Failed to fetch story details: {}", err),
                 }
                 //println!("\n");
-                hintapp.storylist.append_item(HnStoryItem {
+                hintapp.storylist.append_item(DisplayListItem {
                     title,
                     details: format!("Details From URL: {}", url),
                     status: Status::Unread,
@@ -83,16 +83,16 @@ async fn main() -> Result<()> {
 struct App {
     should_exit: bool,
     show_details: bool,
-    storylist: HnStoryList,
+    storylist: DisplayList,
 }
 
-struct HnStoryList {
-    items: Vec<HnStoryItem>,
+struct DisplayList {
+    items: Vec<DisplayListItem>,
     state: ListState,
 }
 
 #[derive(Debug)]
-struct HnStoryItem {
+struct DisplayListItem {
     title: String,
     details: String,
     status: Status,
@@ -109,27 +109,27 @@ impl Default for App {
         Self {
             show_details: false,
             should_exit: false,
-            storylist: HnStoryList::from_iter([]),
+            storylist: DisplayList::from_iter([]),
         }
     }
 }
 
-impl HnStoryList {
+impl DisplayList {
     fn from_iter<I: IntoIterator<Item = (Status, &'static str, &'static str)>>(iter: I) -> Self {
         let items = iter
             .into_iter()
-            .map(|(status, title, details)| HnStoryItem::new(status, title, details))
+            .map(|(status, title, details)| DisplayListItem::new(status, title, details))
             .collect();
         let state = ListState::default();
         Self { items, state }
     }
 
-    fn append_item(&mut self, item: HnStoryItem) {
+    fn append_item(&mut self, item: DisplayListItem) {
         self.items.push(item);
     }
 }
 
-impl HnStoryItem {
+impl DisplayListItem {
     fn new(status: Status, title: &str, details: &str) -> Self {
         Self {
             status,
@@ -310,8 +310,8 @@ const fn alternate_colors(i: usize) -> Color {
     }
 }
 
-impl From<&HnStoryItem> for ListItem<'_> {
-    fn from(value: &HnStoryItem) -> Self {
+impl From<&DisplayListItem> for ListItem<'_> {
+    fn from(value: &DisplayListItem) -> Self {
         let line = match value.status {
             Status::Unread => Line::styled(format!(" ☐ {}", value.title), TEXT_FG_COLOR),
             Status::Read => {
