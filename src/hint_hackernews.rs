@@ -168,8 +168,8 @@ impl fmt::Debug for HnStoryList {
         f.debug_struct("HnStoryList")
             .field("storyidlist", &self.storyidlist)
             .field("storylist", &self.storylist)
-            .field("expected_len", &self.story_writer)
-            .field("read_len", &self.story_maxlen)
+            .field("story_writer", &self.story_writer)
+            .field("story_maxlen", &self.story_maxlen)
             .finish()
     }
 }
