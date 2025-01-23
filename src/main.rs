@@ -254,7 +254,7 @@ impl App {
         let frame = spinner_frames[tick  as usize % (spinner_frames.len() as usize)];
 
         // Add the spinner as the last item
-        items.push(ListItem::from(format!("Updating... {}", frame)));
+        items.push(ListItem::from(format!("  Updating... {}", frame)));
 
         // Create a List from all list items and highlight the currently selected one
         let list = List::new(items)
