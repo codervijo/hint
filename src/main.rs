@@ -232,7 +232,7 @@ impl App {
             .bg(NORMAL_ROW_BG);
 
         // Iterate through all elements in the `items` and stylize them.
-        let items: Vec<ListItem> = self
+        let mut items: Vec<ListItem> = self
             .storylist
             .items
             .iter()
@@ -242,6 +242,7 @@ impl App {
                 ListItem::from(storyitem).bg(color)
             })
             .collect();
+        items.push(ListItem::from("Updating..."));
 
         // Create a List from all list items and highlight the currently selected one
         let list = List::new(items)

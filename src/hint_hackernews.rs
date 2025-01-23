@@ -77,8 +77,8 @@ impl HnStory {
 pub struct HnStoryList {
     storyidlist: Vec<u64>,
     storylist: Vec<HnStory>,
-    expected_len: u32,
-    read_len: usize,
+    story_writer: u32,
+    story_maxlen: usize,
 }
 
 // Define the Iterator for HnStoryList
@@ -105,6 +105,7 @@ impl HnStoryList {
     pub async fn new() -> Self {
         match hnreader::fetch_top_stories().await {
             Ok(story_ids) => {
+                let mut idx = 0;
                 let mut storydets = vec!();
                 for (i, sid) in story_ids.iter().enumerate() {
                     if i > 10 {
@@ -128,12 +129,13 @@ impl HnStoryList {
                         url: Some(url),
                         hntype: HnStoryType::Story,
                     });
+                    idx += 1;
                 }
                 Self {
                     storyidlist: story_ids.clone(),
                     storylist: storydets,
-                    expected_len: 10,
-                    read_len: story_ids.len(),
+                    story_writer: idx,
+                    story_maxlen: story_ids.len(),
                 }
             },
             Err(err) => {
@@ -142,8 +144,8 @@ impl HnStoryList {
                 Self {
                     storyidlist: vec!(),  // Default empty list
                     storylist: vec!(),
-                    expected_len: 10,
-                    read_len: 0,
+                    story_writer: 0,
+                    story_maxlen: 0,
                 }
             },
         }
@@ -155,6 +157,10 @@ impl HnStoryList {
             storylist: &self.storylist,
         }
     }
+
+    pub fn is_filled(&self) -> bool {
+        self.story_writer == self.story_maxlen as u32
+    }
 }
 
 impl fmt::Debug for HnStoryList {
@@ -162,8 +168,8 @@ impl fmt::Debug for HnStoryList {
         f.debug_struct("HnStoryList")
             .field("storyidlist", &self.storyidlist)
             .field("storylist", &self.storylist)
-            .field("expected_len", &self.expected_len)
-            .field("read_len", &self.read_len)
+            .field("expected_len", &self.story_writer)
+            .field("read_len", &self.story_maxlen)
             .finish()
     }
 }
