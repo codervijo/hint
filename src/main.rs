@@ -60,6 +60,7 @@ struct App {
     should_exit: bool,
     show_details: bool,
     storylist: DisplayList,
+    tick_count: u32,
 }
 
 struct DisplayList {
@@ -86,6 +87,7 @@ impl Default for App {
             show_details: false,
             should_exit: false,
             storylist: DisplayList::from_iter([]),
+            tick_count: 0,
         }
     }
 }
@@ -212,6 +214,7 @@ impl Widget for &mut App {
         if self.show_details == true {
             self.render_selected_item(item_area, buf);
         }
+        self.tick_count += 1;
     }
 }
 
@@ -242,7 +245,16 @@ impl App {
                 ListItem::from(storyitem).bg(color)
             })
             .collect();
-        items.push(ListItem::from("Updating..."));
+
+        // Define the spinner frames
+        let spinner_frames = vec!["|", "/", "-", "\\"];
+        let tick = self.tick_count; // Or you can use a counter from your app logic to track ticks
+
+        // Get the current spinner frame
+        let frame = spinner_frames[tick  as usize % (spinner_frames.len() as usize)];
+
+        // Add the spinner as the last item
+        items.push(ListItem::from(format!("Updating... {}", frame)));
 
         // Create a List from all list items and highlight the currently selected one
         let list = List::new(items)
