@@ -1,5 +1,8 @@
 use std::fmt;
 use crate::hnreader;
+use tokio;
+use std::thread;
+use std::sync::{Arc, Mutex};
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -13,7 +16,7 @@ enum HnStoryType {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HnStory {
-    id: u32,
+    id: usize,
     author: String,
     title: String,
     url: Option<String>,
@@ -77,7 +80,7 @@ impl HnStory {
 pub struct HnStoryList {
     storyidlist: Vec<u64>,
     storylist: Vec<HnStory>,
-    story_writer: u32,
+    story_writer: usize,
     story_maxlen: usize,
 }
 
@@ -123,7 +126,7 @@ impl HnStoryList {
                     }
                     //println!("\n");
                     storydets.push(HnStory {
-                        id: i as u32,
+                        id: i,
                         author: String::from("Unknown"),
                         title,
                         url: Some(url),
@@ -159,7 +162,77 @@ impl HnStoryList {
     }
 
     pub fn is_filled(&self) -> bool {
-        self.story_writer == self.story_maxlen as u32
+        self.story_writer == self.story_maxlen
+    }
+
+    // Function to add a new story at a given index
+    pub fn add_story_at_index(&mut self, index: usize, story: HnStory) -> Result<(), String> {
+        if index > self.storylist.len() {
+            return Err("Index out of bounds".to_string());
+        }
+
+        // Insert the story at the given index
+        self.storylist.insert(index, story);
+
+        Ok(())
+    }
+
+    pub async fn update_story_details(&mut self) {
+        let hnstoryid = self.storyidlist[self.story_writer];
+        let mut title = String::from("abc");
+        let mut url = String::from("hcker");
+
+        if self.story_writer >= self.story_maxlen {
+            return;
+        }
+        match hnreader::fetch_story_details(hnstoryid).await {
+            Ok(story) => {
+                //println!("Story Details: {:?}", story);
+                title = story.title.clone().unwrap_or_else(|| String::from("Untitled"));
+                url = story.url.clone().unwrap_or_else(|| String::from("http://example.com"));
+            }
+            Err(err) => eprintln!("Failed to fetch story details: {}", err),
+        }
+        //println!("\n");
+        let hnstory = HnStory {
+            id: self.story_writer,
+            author: String::from("Unknown"),
+            title,
+            url: Some(url),
+            hntype: HnStoryType::Story,
+        };
+        let _ = self.add_story_at_index(self.story_writer, hnstory);
+        self.story_writer += 1;
+    }
+
+    // This method starts a separate thread and runs the `update_story_details` method within a tokio runtime
+    pub fn start_update_thread(shared_list: Arc<Mutex<Self>>) {
+        // Spawn a new thread
+        thread::spawn(move || {
+            // Create a Tokio runtime
+            let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
+
+            // Run the update loop within the runtime
+            rt.block_on(async {
+                loop {
+                    {
+                        // Lock the shared list to safely update it
+                        let mut story_list = shared_list.lock().unwrap();
+
+                        // Exit the loop if all stories are updated
+                        if story_list.story_writer >= story_list.story_maxlen {
+                            break;
+                        }
+
+                        // Update the next story
+                        story_list.update_story_details().await;
+                    } // Mutex lock is released here
+
+                    // Sleep for a short duration to avoid busy-waiting (optional)
+                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                }
+            });
+        });
     }
 }
 
