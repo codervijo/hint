@@ -1,4 +1,5 @@
 use color_eyre::Result;
+use hint_hackernews::HnStory;
 use ratatui::{
     buffer::Buffer,
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
@@ -36,38 +37,13 @@ async fn main() -> Result<()> {
     let terminal = ratatui::init();
     let mut hintapp = App::default();
 
-    match hnreader::fetch_top_stories().await {
-        Ok(story_ids) => {
-            //println!("Top Stories IDs: {:?}", story_ids);
-
-            for (i, sid) in story_ids.iter().enumerate() {
-                if i > 5 {
-                    break;
-                }
-                let mut title = String::from("abc");
-                let mut url = String::from("hcker");
-                match hnreader::fetch_story_details(*sid).await {
-                    Ok(story) => {
-                        //println!("Story Details: {:?}", story);
-                        title = story.title.clone().unwrap_or_else(|| String::from("Untitled"));
-                        url = story.url.clone().unwrap_or_else(|| String::from("http://example.com"));
-                    }
-                    Err(err) => eprintln!("Failed to fetch story details: {}", err),
-                }
-                //println!("\n");
-                hintapp.storylist.append_item(DisplayListItem {
-                    title,
-                    details: format!("Details From URL: {}", url),
-                    status: Status::Unread,
-                });
-            }
-        }
-        Err(err) => eprintln!("Failed to fetch top stories: {}", err),
-    }
-
     let hl = hint_hackernews::HnStoryList::new().await;
     println!("hn list: {:?}", hl);
     log_debug_info("HackerNews List:", format_args!("{:?}", hl));
+    for story in hl.iter() {
+        println!("Story author: {}, Title: {}", story.author(), story.title());
+        hintapp.storylist.append_item(DisplayListItem::from_hnstory(story.clone()));
+    }
 
     let res = hintapp.run(terminal);
     ratatui::restore();
@@ -135,6 +111,15 @@ impl DisplayListItem {
             status,
             title:title.to_string(),
             details: details.to_string(),
+        }
+    }
+
+    #[allow(dead_code)]
+    fn from_hnstory(story: HnStory) -> Self {
+        Self {
+            status: Status::Unread,
+            title: story.title().to_string(),
+            details: String::from("Tobe filled in later")
         }
     }
 }

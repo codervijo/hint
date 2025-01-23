@@ -12,7 +12,7 @@ enum HnStoryType {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct HnStory {
+pub struct HnStory {
     id: u32,
     author: String,
     title: String,
@@ -56,6 +56,21 @@ impl HnStory {
             hntype: HnStoryType::from_string(typev),
         }
     }
+
+    #[allow(dead_code)]
+    pub fn author(&self) -> &str {
+        &self.author
+    }
+
+    #[allow(dead_code)]
+    pub fn title(&self) -> &str {
+        &self.title
+    }
+
+    #[allow(dead_code)]
+    pub fn details(&self) -> &str {
+        "Details of title"
+    }
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -66,13 +81,57 @@ pub struct HnStoryList {
     read_len: usize,
 }
 
+// Define the Iterator for HnStoryList
+pub struct HnStoryListIter<'a> {
+    index: usize,
+    storylist: &'a [HnStory],
+}
+
+impl<'a> Iterator for HnStoryListIter<'a> {
+    type Item = &'a HnStory;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.storylist.len() {
+            let story = &self.storylist[self.index];
+            self.index += 1;
+            Some(story)
+        } else {
+            None
+        }
+    }
+}
+
 impl HnStoryList {
     pub async fn new() -> Self {
         match hnreader::fetch_top_stories().await {
             Ok(story_ids) => {
+                let mut storydets = vec!();
+                for (i, sid) in story_ids.iter().enumerate() {
+                    if i > 10 {
+                        break;
+                    }
+                    let mut title = String::from("abc");
+                    let mut url = String::from("hcker");
+                    match hnreader::fetch_story_details(*sid).await {
+                        Ok(story) => {
+                            //println!("Story Details: {:?}", story);
+                            title = story.title.clone().unwrap_or_else(|| String::from("Untitled"));
+                            url = story.url.clone().unwrap_or_else(|| String::from("http://example.com"));
+                        }
+                        Err(err) => eprintln!("Failed to fetch story details: {}", err),
+                    }
+                    //println!("\n");
+                    storydets.push(HnStory {
+                        id: i as u32,
+                        author: String::from("Unknown"),
+                        title,
+                        url: Some(url),
+                        hntype: HnStoryType::Story,
+                    });
+                }
                 Self {
                     storyidlist: story_ids.clone(),
-                    storylist: vec!(),
+                    storylist: storydets,
                     expected_len: 10,
                     read_len: story_ids.len(),
                 }
@@ -87,6 +146,13 @@ impl HnStoryList {
                     read_len: 0,
                 }
             },
+        }
+    }
+
+    pub fn iter(&self) -> HnStoryListIter {
+        HnStoryListIter {
+            index: 0,
+            storylist: &self.storylist,
         }
     }
 }
