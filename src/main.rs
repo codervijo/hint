@@ -64,11 +64,14 @@ async fn main() -> Result<()> {
             hintapp.storylist.append_item(DisplayListItem::from_hnstory(updated_story));
         }
 
-        // Clear the terminal, draw the updated UI, and render the frame
         terminal.draw(|frame| {
             let size = frame.area();
             hintapp.render(size, frame.buffer_mut());
         })?;
+
+        if let Event::Key(key) = event::read()? {
+            hintapp.handle_key(key);
+        };
 
         // Check if the app should exit
         if hintapp.should_exit {
@@ -160,14 +163,22 @@ impl DisplayListItem {
 }
 
 impl App {
-    fn run(mut self, mut terminal: DefaultTerminal) -> Result<()> {
-        while !self.should_exit {
-            terminal.draw(|frame| frame.render_widget(&mut self, frame.area()))?;
-            if let Event::Key(key) = event::read()? {
-                self.handle_key(key);
-            };
+    fn run(mut self, mut terminal: DefaultTerminal) -> Result<bool> {
+        // Clear the terminal, draw the updated UI, and render the frame
+        terminal.draw(|frame| {
+            let size = frame.area();
+            self.render(size, frame.buffer_mut());
+        })?;
+
+        if let Event::Key(key) = event::read()? {
+            self.handle_key(key);
+        };
+
+        // Check if the app should exit
+        if self.should_exit {
+            return Ok(true);
         }
-        Ok(())
+        Ok(false)
     }
 
     fn handle_key(&mut self, key: KeyEvent) {
