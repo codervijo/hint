@@ -47,6 +47,12 @@ async fn main() -> Result<()> {
     // Create an mpsc channel for communication
     let (tx, mut rx) = mpsc::channel::<HnStory>(100);
 
+    for story in story_list.lock().await.iter() {
+        hintapp
+            .storylist
+            .append_item(DisplayListItem::from_hnstory(story.clone()));
+    }
+
     // Start the update thread
     {
         let story_list_clone = Arc::clone(&story_list);
