@@ -163,7 +163,7 @@ impl DisplayListItem {
         Self {
             status: Status::Unread,
             title: story.title().to_string(),
-            details: String::from("Tobe filled in later")
+            details: story.details(),
         }
     }
 }

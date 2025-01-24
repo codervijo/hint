@@ -59,7 +59,6 @@ impl HnStory {
         }
     }
 
-    #[allow(dead_code)]
     pub fn author(&self) -> &str {
         &self.author
     }
@@ -69,9 +68,12 @@ impl HnStory {
         &self.title
     }
 
-    #[allow(dead_code)]
-    pub fn details(&self) -> &str {
-        "Details of title"
+    pub fn url(&self) -> &Option<String> {
+        &self.url
+    }
+
+    pub fn details(&self) -> String {
+        format!("URL : {:?} Author: {:?}", self.url(), self.author())
     }
 }
 
@@ -115,11 +117,13 @@ impl HnStoryList {
                     }
                     let mut title = String::from("abc");
                     let mut url = String::from("hcker");
+                    let mut author = String::from("anony");
                     match hnreader::fetch_story_details(*sid).await {
                         Ok(story) => {
                             //println!("Story Details: {:?}", story);
                             title = story.title.clone().unwrap_or_else(|| String::from("Untitled"));
                             url = story.url.clone().unwrap_or_else(|| String::from("http://example.com"));
+                            author = story.by.clone().unwrap_or_else(|| String::from("Anonymous Author"));
                         }
                         Err(err) => eprintln!("Failed to fetch story details: {}", err),
                     }
