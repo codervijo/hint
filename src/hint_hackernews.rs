@@ -160,6 +160,7 @@ impl HnStoryList {
         }
     }
 
+    #[allow(dead_code)]
     pub fn is_filled(&self) -> bool {
         self.story_writer == self.story_maxlen
     }
@@ -182,8 +183,9 @@ impl HnStoryList {
         }
 
         let hnstoryid = self.storyidlist[self.story_writer];
-        let mut title = String::from("Untitled");
-        let mut url = String::from("http://example.com");
+        //let mut title = String::from("Untitled");
+        //let mut url = String::from("http://example.com");
+        let (title, url);
 
         match hnreader::fetch_story_details(hnstoryid).await {
             Ok(story) => {
