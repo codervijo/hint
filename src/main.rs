@@ -30,7 +30,7 @@ const SELECTED_STYLE: Style = Style::new().bg(BLUE.c700).add_modifier(Modifier::
 const TEXT_FG_COLOR: Color = BLUE.c200;
 const COMPLETED_TEXT_FG_COLOR: Color = TEAL.c400; // Slightly shifted for better contrast with blue
 
-use tokio::sync::{Mutex, watch};
+use tokio::sync::{Mutex};
 use tokio::sync::mpsc;
 
 #[tokio::main]
@@ -169,24 +169,6 @@ impl DisplayListItem {
 }
 
 impl App {
-    fn run(mut self, mut terminal: DefaultTerminal) -> Result<bool> {
-        // Clear the terminal, draw the updated UI, and render the frame
-        terminal.draw(|frame| {
-            let size = frame.area();
-            self.render(size, frame.buffer_mut());
-        })?;
-
-        if let Event::Key(key) = event::read()? {
-            self.handle_key(key);
-        };
-
-        // Check if the app should exit
-        if self.should_exit {
-            return Ok(true);
-        }
-        Ok(false)
-    }
-
     fn handle_key(&mut self, key: KeyEvent) {
         if key.kind != KeyEventKind::Press {
             return;

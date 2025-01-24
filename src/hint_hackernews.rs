@@ -1,9 +1,6 @@
 use std::fmt;
 use crate::hnreader;
 use tokio;
-use std::thread;
-use std::sync::{Arc};
-use tokio::sync::{Mutex, watch};
 use tokio::sync::mpsc;
 
 #[allow(dead_code)]
