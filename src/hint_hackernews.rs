@@ -2,7 +2,9 @@ use std::fmt;
 use crate::hnreader;
 use tokio;
 use std::thread;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc};
+use tokio::sync::{Mutex, watch};
+use tokio::sync::mpsc;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -177,23 +179,25 @@ impl HnStoryList {
         Ok(())
     }
 
-    pub async fn update_story_details(&mut self) {
-        let hnstoryid = self.storyidlist[self.story_writer];
-        let mut title = String::from("abc");
-        let mut url = String::from("hcker");
-
+    pub async fn update_story_details(&mut self) -> Result<HnStory, String> {
         if self.story_writer >= self.story_maxlen {
-            return;
+            return Err(String::from("No more stories to process"));
         }
+
+        let hnstoryid = self.storyidlist[self.story_writer];
+        let mut title = String::from("Untitled");
+        let mut url = String::from("http://example.com");
+
         match hnreader::fetch_story_details(hnstoryid).await {
             Ok(story) => {
-                //println!("Story Details: {:?}", story);
                 title = story.title.clone().unwrap_or_else(|| String::from("Untitled"));
                 url = story.url.clone().unwrap_or_else(|| String::from("http://example.com"));
             }
-            Err(err) => eprintln!("Failed to fetch story details: {}", err),
+            Err(err) => {
+                return Err(format!("Failed to fetch story details: {}", err));
+            }
         }
-        //println!("\n");
+
         let hnstory = HnStory {
             id: self.story_writer,
             author: String::from("Unknown"),
@@ -201,39 +205,56 @@ impl HnStoryList {
             url: Some(url),
             hntype: HnStoryType::Story,
         };
-        let _ = self.add_story_at_index(self.story_writer, hnstory);
+
+        self.add_story_at_index(self.story_writer, hnstory.clone()).map_err(|e| {
+            format!("Failed to add story at index {}: {}", self.story_writer, e)
+        })?;
         self.story_writer += 1;
+
+        Ok(hnstory)
     }
 
     // This method starts a separate thread and runs the `update_story_details` method within a tokio runtime
-    pub fn start_update_thread(shared_list: Arc<Mutex<Self>>) {
-        // Spawn a new thread
-        thread::spawn(move || {
-            // Create a Tokio runtime
+    pub fn start_update_thread_with_callback(&mut self, tx: mpsc::Sender<HnStory>) {
+        // Clone the current story list for use in the thread
+        let mut story_list = self.clone();
+
+        // Start a new thread to handle the updates
+        std::thread::spawn(move || {
+            // Create a single Tokio runtime for asynchronous operations
             let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
 
-            // Run the update loop within the runtime
-            rt.block_on(async {
-                loop {
-                    {
-                        // Lock the shared list to safely update it
-                        let mut story_list = shared_list.lock().unwrap();
+            let mut keep_running = true;
 
-                        // Exit the loop if all stories are updated
-                        if story_list.story_writer >= story_list.story_maxlen {
-                            break;
-                        }
+            while keep_running {
+                // Perform the asynchronous update using the runtime
+                rt.block_on(async {
+                    let newstory = story_list.update_story_details().await;
 
-                        // Update the next story
-                        story_list.update_story_details().await;
-                    } // Mutex lock is released here
+                    // Create a story from the updated details
+                    let story = HnStory {
+                        id: story_list.story_writer,
+                        author: String::from("Unknown"),
+                        title: newstory.unwrap().title,
+                        url: Some(String::from("http://updated-url.com")),
+                        hntype: HnStoryType::Story,
+                    };
 
-                    // Sleep for a short duration to avoid busy-waiting (optional)
-                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                    // Try to send the updated story to the main thread
+                    if let Err(err) = tx.send(story).await {
+                        eprintln!("Failed to send story: {}", err);
+                        keep_running = false; // Mark the loop to stop
+                    }
+                });
+
+                // Sleep for 5 seconds before the next update
+                if keep_running {
+                    std::thread::sleep(std::time::Duration::from_secs(1));
                 }
-            });
+            }
         });
     }
+
 }
 
 impl fmt::Debug for HnStoryList {

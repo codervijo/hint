@@ -17,8 +17,6 @@ use ratatui::{
     DefaultTerminal,
 };
 use std::sync::Arc;
-use std::sync::Mutex;
-
 mod hnreader;
 mod hint_hackernews;
 mod hint_log;
@@ -32,65 +30,58 @@ const SELECTED_STYLE: Style = Style::new().bg(BLUE.c700).add_modifier(Modifier::
 const TEXT_FG_COLOR: Color = BLUE.c200;
 const COMPLETED_TEXT_FG_COLOR: Color = TEAL.c400; // Slightly shifted for better contrast with blue
 
+use tokio::sync::{Mutex, watch};
+use tokio::sync::mpsc;
+
 #[tokio::main]
 async fn main() -> Result<()> {
     init_debug_log();
     color_eyre::install()?;
-    let terminal = ratatui::init();
+
+    let mut terminal = ratatui::init();
     let mut hintapp = App::default();
 
-    // Initialize the shared HnStoryList
-    let shared_story_list = Arc::new(Mutex::new(hint_hackernews::HnStoryList::new().await));
+    // Create a new HnStoryList wrapped in Arc<Mutex<>>
+    let story_list = Arc::new(Mutex::new(hint_hackernews::HnStoryList::new().await));
 
-    // Start the background update thread
-    hint_hackernews::HnStoryList::start_update_thread(Arc::clone(&shared_story_list));
+    // Create an mpsc channel for communication
+    let (tx, mut rx) = mpsc::channel::<HnStory>(100);
 
-    // Print initial story list
+    // Start the update thread
     {
-        let story_list = shared_story_list.lock().unwrap();
-        println!("Initial HackerNews List: {:?}", story_list);
-        log_debug_info("HackerNews List:", format_args!("{:?}", story_list));
-        for story in story_list.iter() {
-            println!("Story author: {}, Title: {}", story.author(), story.title());
-            hintapp
-                .storylist
-                .append_item(DisplayListItem::from_hnstory(story.clone()));
-        }
-    } // Mutex lock is released here
+        let story_list_clone = Arc::clone(&story_list);
+        tokio::spawn(async move {
+            let mut locked_list = story_list_clone.lock().await;
+            locked_list.start_update_thread_with_callback(tx.clone());
+        });
+    }
 
-    // Run the TUI while periodically refreshing the story list
-    let res = tokio::spawn(async move {
-        loop {
-            {
-                // Lock the shared story list for reading
-                let story_list = shared_story_list.lock().unwrap();
-                hintapp.storylist.items.clear();
-                for story in story_list.iter() {
-                    hintapp
-                        .storylist
-                        .append_item(DisplayListItem::from_hnstory(story.clone()));
-                }
-
-                // Exit if all stories are updated
-                if story_list.is_filled() {
-                    println!("All stories updated!");
-                    break;
-                }
-            } // Mutex lock is released here
-
-            // Update TUI periodically
-            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    // Main TUI loop
+    loop {
+        // Process received updates
+        if let Some(updated_story) = rx.recv().await {
+            // Add the received story to the display list
+            hintapp.storylist.append_item(DisplayListItem::from_hnstory(updated_story));
         }
 
-        // Run the app
-        hintapp.run(terminal)
-    })
-    .await?;
+        // Clear the terminal, draw the updated UI, and render the frame
+        terminal.draw(|frame| {
+            let size = frame.area();
+            hintapp.render(size, frame.buffer_mut());
+        })?;
+
+        // Check if the app should exit
+        if hintapp.should_exit {
+            break;
+        }
+
+        // Short delay to prevent excessive CPU usage
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
 
     ratatui::restore();
-    res
+    Ok(())
 }
-
 
 /// This struct holds the current state of the app. In particular, it has the `list` field
 /// which is a wrapper around `ListState`. Keeping track of the state lets us render the
